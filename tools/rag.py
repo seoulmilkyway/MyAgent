@@ -108,6 +108,12 @@ def get_vectorstore():
     print("[System] FAISS index created and saved.")
     return vectorstore
 
+def reset_vectorstore():
+    """새 PDF가 추가되었을 때 벡터스토어를 초기화하여 다음 검색 시 재인덱싱되도록 함."""
+    global _vectorstore
+    with _vectorstore_lock:
+        _vectorstore = None
+
 @tool
 def search_local_docs(query: str) -> str:
     """Search for relevant information in the local PDF documents stored in the Docs directory. Use this when the user asks about internal documents or PDFs."""

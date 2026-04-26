@@ -11,9 +11,15 @@ from tools.rag import search_local_docs
 
 _MAX_INPUT_LENGTH = 2000
 
-def _sanitize(text: str) -> str:
-    """사용자 입력 길이를 제한하고 프롬프트 구분자를 무력화."""
-    return text[:_MAX_INPUT_LENGTH].replace("<|", "< |").replace("|>", "| >")
+def _sanitize(text) -> str:
+    """사용자 입력 길이를 제한하고 프롬프트 구분자를 무력화.
+    멀티모달 content list인 경우 텍스트 블록만 추출한다."""
+    if isinstance(text, list):
+        text = " ".join(
+            block.get("text", "") for block in text
+            if isinstance(block, dict) and block.get("type") == "text"
+        )
+    return str(text)[:_MAX_INPUT_LENGTH].replace("<|", "< |").replace("|>", "| >")
 
 # We initialize tools
 search_web = get_search_tool()
@@ -22,11 +28,22 @@ class State(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
 
 def route_query(state: State) -> str:
-    # 사용자의 마지막 메시지 분석
-    last_human_msg = _sanitize(next((m.content for m in reversed(state["messages"]) if m.type == "human"), ""))
+    last_msg = next((m for m in reversed(state["messages"]) if m.type == "human"), None)
+    if last_msg is None:
+        return "direct_chat_node"
+
+    # 이미지·음성·영상이 포함된 멀티모달 메시지는 LLM이 직접 분석
+    if isinstance(last_msg.content, list):
+        has_media = any(
+            isinstance(b, dict) and b.get("type") in ("image_url", "media")
+            for b in last_msg.content
+        )
+        if has_media:
+            return "direct_chat_node"
+
+    last_human_msg = _sanitize(last_msg.content)
 
     llm = get_llm()
-    # 라우터 전용 프롬프트
     sys_msg = """You are a strict routing assistant. Analyze the user's intent.
 Choose exactly one of the following words based on what the user wants:
 - 'rag': The user asks to search or summarize internal documents, PDFs, or files in the Docs folder.
@@ -35,14 +52,14 @@ Choose exactly one of the following words based on what the user wants:
 - 'direct_chat': The user is just chatting normally without needing extra tools.
 
 Reply with ONLY the chosen word. No other text."""
-    
+
     response = llm.invoke([
         {"role": "system", "content": sys_msg},
         {"role": "user", "content": last_human_msg}
     ])
-    
+
     route = response.content.strip().lower()
-    
+
     if "rag" in route: return "rag_node"
     if "web" in route: return "web_search_node"
     if "other" in route: return "other_tools_node"
@@ -86,7 +103,7 @@ Do not output any other text or explanation."""
     return {"messages": [sys_msg]}
 
 def web_search_node(state: State):
-    query = next((m.content for m in reversed(state["messages"]) if m.type == "human"), "")
+    query = _sanitize(next((m.content for m in reversed(state["messages"]) if m.type == "human"), ""))
     result = search_web.invoke(query)
     sys_msg = SystemMessage(content=f"[웹 검색 결과]\n{result}\n\n위 결과를 바탕으로 사용자의 질문에 답해주세요.")
     return {"messages": [sys_msg]}

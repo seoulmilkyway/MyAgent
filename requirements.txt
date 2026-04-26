@@ -1,3 +1,4 @@
+gradio
 langchain
 langchain-ollama
 langchain-community
