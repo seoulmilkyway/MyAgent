@@ -1,0 +1,16 @@
+langchain
+langchain-ollama
+langchain-community
+langchain-openai
+langchain-google-genai
+langgraph
+python-dotenv
+ddgs
+langsmith
+tavily-python
+google-search-results
+
+pypdf
+faiss-cpu
+sentence-transformers
+langchain-huggingface
