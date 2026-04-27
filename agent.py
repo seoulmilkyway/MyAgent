@@ -8,6 +8,21 @@ from llm_factory import get_llm
 from tools.search import get_search_tool
 from tools.file_ops import read_file, write_file
 from tools.rag import search_local_docs
+from tools.google_calendar import (
+    get_upcoming_events, 
+    create_calendar_event, 
+    search_calendar_events, 
+    update_calendar_event, 
+    delete_calendar_event
+)
+from tools.gmail import (
+    search_emails,
+    get_email_content,
+    send_email,
+    reply_to_email,
+    forward_email,
+    trash_email
+)
 
 _MAX_INPUT_LENGTH = 2000
 
@@ -49,6 +64,8 @@ Choose exactly one of the following words based on what the user wants:
 - 'rag': The user asks to search or summarize internal documents, PDFs, or files in the Docs folder.
 - 'web_search': The user asks for news, current events, or general facts from the internet.
 - 'other_tools': The user wants to write/save a text file or read a specific file path.
+- 'calendar': The user wants to check schedules or create a new event in Google Calendar.
+- 'email': The user wants to read, send, reply, forward, or delete emails in Gmail.
 - 'direct_chat': The user is just chatting normally without needing extra tools.
 
 Reply with ONLY the chosen word. No other text."""
@@ -63,6 +80,8 @@ Reply with ONLY the chosen word. No other text."""
     if "rag" in route: return "rag_node"
     if "web" in route: return "web_search_node"
     if "other" in route: return "other_tools_node"
+    if "calendar" in route: return "other_tools_node"
+    if "email" in route: return "other_tools_node"
     return "direct_chat_node"
 
 def rag_node(state: State):
@@ -116,7 +135,12 @@ def check_rag_result(state: State) -> str:
 
 def other_tools_node(state: State):
     # 파일 작업 등은 LLM이 직접 도구를 선택해서 매개변수를 넣어야 하므로 bind_tools 사용
-    llm = get_llm().bind_tools([read_file, write_file])
+    llm = get_llm().bind_tools([
+        read_file, write_file, 
+        get_upcoming_events, create_calendar_event,
+        search_calendar_events, update_calendar_event, delete_calendar_event,
+        search_emails, get_email_content, send_email, reply_to_email, forward_email, trash_email
+    ])
     response = llm.invoke(state["messages"])
     return {"messages": [response]}
 
@@ -160,7 +184,12 @@ def build_workflow():
     workflow_builder.add_node("generate_node", generate_node)
     
     from langgraph.prebuilt import ToolNode, tools_condition
-    tool_node = ToolNode(tools=[read_file, write_file])
+    tool_node = ToolNode(tools=[
+        read_file, write_file, 
+        get_upcoming_events, create_calendar_event,
+        search_calendar_events, update_calendar_event, delete_calendar_event,
+        search_emails, get_email_content, send_email, reply_to_email, forward_email, trash_email
+    ])
     workflow_builder.add_node("tools", tool_node)
     
     # 엣지 연결: 시작 -> 라우터 (별도 노드 없이 조건부 엣지로 바로 분기)
