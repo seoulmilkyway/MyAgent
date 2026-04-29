@@ -23,6 +23,7 @@ from tools.gmail import (
     forward_email,
     trash_email
 )
+from tools.mcp_client import get_mcp_tools
 
 _MAX_INPUT_LENGTH = 2000
 
@@ -63,7 +64,7 @@ def route_query(state: State) -> str:
 Choose exactly one of the following words based on what the user wants:
 - 'rag': The user asks to search or summarize internal documents, PDFs, or files in the Docs folder.
 - 'web_search': The user asks for news, current events, or general facts from the internet.
-- 'other_tools': The user wants to write/save a text file or read a specific file path.
+- 'other_tools': The user wants to write/save a text file, read a file, or use external services (like Notion, Jira, database, etc. via MCP).
 - 'calendar': The user wants to check schedules or create a new event in Google Calendar.
 - 'email': The user wants to read, send, reply, forward, or delete emails in Gmail.
 - 'direct_chat': The user is just chatting normally without needing extra tools.
@@ -134,13 +135,14 @@ def check_rag_result(state: State) -> str:
     return "generate_node"
 
 def other_tools_node(state: State):
-    # 파일 작업 등은 LLM이 직접 도구를 선택해서 매개변수를 넣어야 하므로 bind_tools 사용
-    llm = get_llm().bind_tools([
+    # 파일 작업, 구글 캘린더, Gmail 및 확장된 MCP 외부 도구들을 통합하여 LLM에 바인딩
+    all_tools = [
         read_file, write_file, 
         get_upcoming_events, create_calendar_event,
         search_calendar_events, update_calendar_event, delete_calendar_event,
         search_emails, get_email_content, send_email, reply_to_email, forward_email, trash_email
-    ])
+    ] + get_mcp_tools()
+    llm = get_llm().bind_tools(all_tools)
     response = llm.invoke(state["messages"])
     return {"messages": [response]}
 
@@ -184,12 +186,26 @@ def build_workflow():
     workflow_builder.add_node("generate_node", generate_node)
     
     from langgraph.prebuilt import ToolNode, tools_condition
-    tool_node = ToolNode(tools=[
+    all_tools = [
         read_file, write_file, 
         get_upcoming_events, create_calendar_event,
         search_calendar_events, update_calendar_event, delete_calendar_event,
         search_emails, get_email_content, send_email, reply_to_email, forward_email, trash_email
-    ])
+    ] + get_mcp_tools()
+    
+    # 터미널에 사용 가능한 도구 목록 출력
+    print("========================================")
+    print("🚀 Agent Available Tools Loaded:")
+    print("  - search_local_docs (RAG 검색)")
+    print(f"  - {search_web.name} (웹 검색)")
+    for t in all_tools:
+        desc = t.description.strip().replace('\n', ' ')
+        # 설명이 너무 길면 자르기
+        if len(desc) > 60: desc = desc[:57] + '...'
+        print(f"  - {t.name}: {desc}")
+    print("========================================")
+
+    tool_node = ToolNode(tools=all_tools)
     workflow_builder.add_node("tools", tool_node)
     
     # 엣지 연결: 시작 -> 라우터 (별도 노드 없이 조건부 엣지로 바로 분기)
