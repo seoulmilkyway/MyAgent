@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MyAgent</title>
+  <link rel="stylesheet" href="sidebar.css" />
+</head>
+<body>
+  <div id="app">
+
+    <header>
+      <div class="header-left">
+        <span class="logo">🤖</span>
+        <span class="title">MyAgent</span>
+      </div>
+      <div class="header-right">
+        <button id="server-check-btn" class="icon-btn" title="서버 연결 확인">🔌</button>
+        <button id="clear-btn" class="icon-btn" title="대화 초기화">🗑️</button>
+      </div>
+    </header>
+
+    <div id="server-status" class="server-status disconnected">
+      서버 연결 확인 중...
+    </div>
+
+    <div id="messages" role="log" aria-live="polite"></div>
+
+    <div id="status-bar" class="status-bar hidden"></div>
+
+    <!-- 페이지 컨텍스트 툴바 -->
+    <div id="page-context-bar" class="page-context-bar hidden">
+      <span id="page-context-label" class="page-context-label"></span>
+      <button id="page-context-clear" class="page-context-clear" title="컨텍스트 제거">✕</button>
+    </div>
+
+    <div id="input-area">
+      <button id="read-page-btn" class="icon-btn read-page-btn" title="현재 페이지 읽기">📄</button>
+      <textarea
+        id="input"
+        placeholder="메시지를 입력하세요... (Enter: 전송 / Shift+Enter: 줄바꿈)"
+        rows="1"
+        aria-label="메시지 입력"
+      ></textarea>
+      <button id="send-btn" title="전송">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+        </svg>
+      </button>
+    </div>
+
+  </div>
+  <script src="sidebar.js"></script>
+</body>
+</html>

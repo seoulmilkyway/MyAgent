@@ -1,4 +1,6 @@
 gradio
+fastapi
+uvicorn[standard]
 langchain
 langchain-ollama
 langchain-community
